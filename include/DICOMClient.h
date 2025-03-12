@@ -23,7 +23,7 @@ private:
 public:
     explicit DICOMClient(
         string aeSCU = "SCU_AET",
-        string aeSCP = "SCP_AET",
+        string aeSCP = "PACS_SRC",
         string address = "127.0.0.1",
         int port = 1024,
         string dicomDict = "/mnt/c/usr/local/share/dicom.dic"
@@ -31,11 +31,11 @@ public:
     ~DICOMClient();
 
     bool connect(const char *abstractSyntax, const char *transferSyntax, T_ASC_PresentationContextID presentationContextID = 1);
-    bool sendMessage(int msgId, const string &dicomFilePath = nullptr);
+    [[nodiscard]] bool sendMessage(int msgId, const string &dicomFilePath = "") const;
 
-    bool sendCEcho(int msgId);
-    bool sendCStore(int msgId, const string &dicomFilePath);
-    bool sendCFind(int msgId);
+    [[nodiscard]] bool sendCEcho(int msgId) const;
+    [[nodiscard]] bool sendCStore(int msgId, const string &dicomFilePath) const;
+    [[nodiscard]] bool sendCFind(int msgId) const;
     void disconnect();
 };
 

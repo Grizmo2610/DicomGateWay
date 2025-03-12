@@ -24,9 +24,24 @@ DICOMClient::DICOMClient(   string aeSCU,
 
 }
 
+void DICOMClient::disconnect() {
+    if (assoc) {
+        if (ASC_releaseAssociation(assoc).bad()) {
+            cerr << "Warning: Failed to release association, aborting..." << endl;
+            ASC_abortAssociation(assoc);
+        }
+        ASC_destroyAssociation(&assoc);
+    }
+
+    if (net) {
+        ASC_dropNetwork(&net);
+    }
+
+    cout << "DICOM Network shut down." << endl;
+}
 
 DICOMClient::~DICOMClient() {
-    // disconnect();
+    disconnect();
 }
 bool DICOMClient::connect(const char *abstractSyntax, const char *transferSyntax, T_ASC_PresentationContextID presentationContextID){
     if (ASC_initializeNetwork(NET_REQUESTOR, peerPort, 1000, &net).bad()) {
@@ -47,7 +62,10 @@ bool DICOMClient::connect(const char *abstractSyntax, const char *transferSyntax
 
     ASC_setAPTitles(params, aeTitleSCU.c_str(), aeTitleSCP.c_str(), nullptr);
     string peer = peerAddress + ":" + to_string(peerPort);
-    ASC_setPresentationAddresses(params, peer.c_str(), peer.c_str());
+    ASC_setPresentationAddresses(   params,
+                                    peer.c_str(),//
+                                    peer.c_str() //
+                                    );
 
     if (ASC_requestAssociation(net, params, &assoc).bad()) {
         cerr << "Failed to request association." << endl;
@@ -63,7 +81,7 @@ bool DICOMClient::connect(const char *abstractSyntax, const char *transferSyntax
     return true;
 }
 
-bool DICOMClient::sendMessage(const int msgId, const string &dicomFilePath) {
+bool DICOMClient::sendMessage(const int msgId, const string &dicomFilePath) const {
     if (!assoc) {
         cerr << "No active association!" << endl;
         return false;
@@ -81,7 +99,7 @@ bool DICOMClient::sendMessage(const int msgId, const string &dicomFilePath) {
     }
 }
 
-bool DICOMClient::sendCEcho(const int msgId) {
+bool DICOMClient::sendCEcho(const int msgId) const {
     DIC_US rspStatus;
     DcmDataset *statusDetail = nullptr;
 
@@ -95,12 +113,44 @@ bool DICOMClient::sendCEcho(const int msgId) {
     }
 }
 
-bool DICOMClient::sendCStore(int msgId, const string &dicomFilePath) {
-    if (!assoc) {
-        cerr << "No active association!" << endl;
+bool DICOMClient::sendCFind(int msgId) const {
+    T_DIMSE_C_FindRQ request{};
+    memset(&request, 0, sizeof(request));
+    request.MessageID = msgId;
+    request.DataSetType = DIMSE_DATASET_PRESENT;
+    strcpy(request.AffectedSOPClassUID, UID_FINDPatientRootQueryRetrieveInformationModel);
+
+    // Tạo dataset chứa search query
+    auto *query = new DcmDataset();
+    query->putAndInsertString(DCM_PatientName, "*");
+    query->putAndInsertString(DCM_PatientID, "");
+
+    // Biến nhận phản hồi
+    int responseCount = 0;
+    T_DIMSE_C_FindRSP response{};
+    DcmDataset *statusDetail = nullptr;
+
+    const T_ASC_PresentationContextID presId = ASC_findAcceptedPresentationContextID(assoc, request.AffectedSOPClassUID);
+
+    // Gửi C-FIND và nhận phản hồi
+    OFCondition cond = DIMSE_findUser(
+        assoc, presId, &request, query, responseCount,
+        nullptr, nullptr, DIMSE_BLOCKING, 30, &response, &statusDetail
+    );
+
+    delete query;
+    delete statusDetail;
+
+    if (cond.good()) {
+        std::cout << "C-FIND query sent successfully." << std::endl;
+        return true;
+    } else {
+        std::cerr << "C-FIND failed: " << cond.text() << std::endl;
         return false;
     }
+}
 
+bool DICOMClient::sendCStore(int msgId, const string &dicomFilePath) const {
     if (dicomFilePath.empty()) {
         cerr << "C-STORE requires a valid DICOM file path!" << endl;
         return false;
@@ -120,7 +170,7 @@ bool DICOMClient::sendCStore(int msgId, const string &dicomFilePath) {
         return false;
     }
 
-    T_DIMSE_C_StoreRQ request;
+    T_DIMSE_C_StoreRQ request{};
 
     OFString sopInstanceUID, sopClassUID;
     if (dataset->findAndGetOFString(DCM_SOPInstanceUID, sopInstanceUID).bad()) {
@@ -153,7 +203,8 @@ bool DICOMClient::sendCStore(int msgId, const string &dicomFilePath) {
         return false;
     }
 
-    T_DIMSE_C_StoreRSP response;
+    T_DIMSE_C_StoreRSP response{};
+
     DcmDataset *statusDetail = nullptr;
     status = DIMSE_storeUser(assoc, presId, &request, dicomFilePath.c_str(), dataset, nullptr, nullptr, DIMSE_BLOCKING, 0, &response, &statusDetail, nullptr, 0);
 
@@ -163,26 +214,4 @@ bool DICOMClient::sendCStore(int msgId, const string &dicomFilePath) {
     }
     cerr << "C-STORE failed: " << status.text() << " (Status: " << response.DimseStatus << ", msgId: " << msgId << ")" << endl;
     return false;
-}
-
-
-bool DICOMClient::sendCFind(int msgId) {
-    return false;
-}
-
-
-void DICOMClient::disconnect() {
-    if (assoc) {
-        if (ASC_releaseAssociation(assoc).bad()) {
-            cerr << "Warning: Failed to release association, aborting..." << endl;
-            ASC_abortAssociation(assoc);
-        }
-        ASC_destroyAssociation(&assoc);
-    }
-
-    if (net) {
-        ASC_dropNetwork(&net);
-    }
-
-    cout << "DICOM Network shut down." << endl;
 }
