@@ -1,0 +1,48 @@
+# Ignore CLion-specific and JetBrains IDE files
+.idea/
+cmake-build-*/
+
+# Ignore build artifacts
+CMakeCache.txt
+CMakeFiles/
+CMakeLists.txt.user
+cmake_install.cmake
+Makefile
+
+# Ignore compiled binaries and libraries
+*.o
+*.obj
+*.so
+*.dll
+*.dylib
+*.a
+*.lib
+*.exe
+
+# Ignore generated files
+*.log
+*.out
+*.temp
+*.swp
+*.swo
+*.class
+*.pyc
+*.pyo
+*.DS_Store
+
+# Ignore third-party dependencies
+vendor/
+external/
+vcpkg_installed/
+conanbuildinfo.cmake
+conanbuildinfo.txt
+conaninfo.txt
+graph_info.json
+
+# Ignore CLion CMake environment
+.clangd/
+.cmake/api/
+.cmake/configure.cache/
+CMakeUserPresets.json
+
+data/
