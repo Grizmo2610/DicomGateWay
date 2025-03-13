@@ -120,19 +120,16 @@ bool DICOMClient::sendCFind(int msgId) const {
     request.DataSetType = DIMSE_DATASET_PRESENT;
     strcpy(request.AffectedSOPClassUID, UID_FINDPatientRootQueryRetrieveInformationModel);
 
-    // Tạo dataset chứa search query
     auto *query = new DcmDataset();
     query->putAndInsertString(DCM_PatientName, "*");
     query->putAndInsertString(DCM_PatientID, "");
 
-    // Biến nhận phản hồi
     int responseCount = 0;
     T_DIMSE_C_FindRSP response{};
     DcmDataset *statusDetail = nullptr;
 
     const T_ASC_PresentationContextID presId = ASC_findAcceptedPresentationContextID(assoc, request.AffectedSOPClassUID);
 
-    // Gửi C-FIND và nhận phản hồi
     OFCondition cond = DIMSE_findUser(
         assoc, presId, &request, query, responseCount,
         nullptr, nullptr, DIMSE_BLOCKING, 30, &response, &statusDetail

@@ -7,20 +7,10 @@ export DCMDICTPATH="/mnt/c/usr/local/share/dicom.dic"
 dcmqrscp -d -c dcmqrscp.cfg  1024
 ```
 
-```cfg
-NetworkTCPPort = 1024
-MaxPDUSize = 16384
-MaxAssociations = 16
-
-HostTable BEGIN
-PACS1 = (PACS_SRC1, localhost, 1024)
-HostTable END
-
-AETable BEGIN
-PACS_SRC /mnt/c/HoangTu/Programing/DicomGateWay/dcmqrscp/dicom_database RW (100, 1024mb) ANY
-AETable END
-
+```bash
+dcmqrscp -<option> -c <path to config file>  <tcp/icp port>
 ```
+
 PACS_SRC == aeSCP
 
 # STORESCP

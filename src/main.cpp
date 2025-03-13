@@ -19,7 +19,7 @@ void testCECHOSCU(DICOMClient client) {
     }
 }
 
-string random_path(const string& folderPath = "/mnt/c/HoangTu/Programing/DicomGateWay/DICOMGATEWAY/DCMGATE/data/CT3/1.2.840.113704.9.1000.16.1.2024100908464206400020001") {
+string random_path(const string& folderPath = "/mnt/c/HoangTu/Programing/DicomGateWay/DICOMGATEWAY/data/CT3/1.2.840.113704.9.1000.16.1.2024100908464206400020001") {
     vector<path> files;
 
     if (!exists(folderPath) || !is_directory(folderPath)) {
