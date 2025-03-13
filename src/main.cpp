@@ -61,20 +61,32 @@ void testCSTORESCU(DICOMClient client) {
 }
 
 void testCFINDSCU(DICOMClient client) {
-    client.disconnect();
     const char *abstractSyntax = UID_FINDPatientRootQueryRetrieveInformationModel;
     const char *transferSyntax = UID_LittleEndianImplicitTransferSyntax;
 
+    string patientName = "CT so nao 16 day [khong tiem]";
+    string patientID = "1909051302";
+    string studyDate = "20241009";
+    string modality = "CT";
+
+    DcmDataset query = DICOMClient::createFindQuery("", "1909051302", "20241009");
+    query.print(COUT);
+
     if (client.connect(abstractSyntax, transferSyntax)) {
-        if (client.sendMessage(2, "")) {
-            cout << ">>>C-FIND OK" << endl;
+        int numResults = 0;
+        if (vector<string> foundFiles; client.sendMessage(2, "", query, foundFiles, numResults)) {
+            cout << ">>> C-FIND OK" << endl;
+            for (const auto &file : foundFiles) {
+                cout << "Found: " << file << endl;
+            }
         } else {
-            cout << ">>>C-FIND FAIL" << endl;
+            cout << ">>> C-FIND FAIL" << endl;
         }
     } else {
-        cout << ">>>CONNECTION FAIL" << endl;
+        cout << ">>> CONNECTION FAIL" << endl;
     }
 }
+
 
 
 int main() {

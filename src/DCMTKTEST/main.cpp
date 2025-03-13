@@ -26,7 +26,7 @@ void printDICOMInfo(const string &filename) {
 }
 
 int main() {
-  string path = "/mnt/c/HoangTu/Programing/DicomGateWay/DICOMGATEWAY/data/first.dcm";
+  string path = "/mnt/c/HoangTu/Programing/DicomGateWay/DICOMGATEWAY/dcmqrscp/scp01/database/CT_67d24d60621992de.dcm";
   printDICOMInfo(path);
   return 0;
 }

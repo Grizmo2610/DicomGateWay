@@ -7,11 +7,11 @@
 #include "dcmtk/dcmdata/dcuid.h"
 #include <iostream>
 #include <memory>
+#include <vector>
 
 using namespace std;
 
 class DICOMClient {
-private:
     T_ASC_Network *net = nullptr;
     T_ASC_Association *assoc = nullptr;
     T_ASC_Parameters *params = nullptr;
@@ -20,6 +20,12 @@ private:
     string peerAddress;
     int peerPort;
     string dicomDictPath;
+    [[nodiscard]] bool sendCEcho(int msgId) const;
+    [[nodiscard]] bool sendCStore(int msgId, const string &dicomFilePath) const;
+    [[nodiscard]] bool sendCFind(int msgId,
+                                DcmDataset &query,
+                                vector<string> &foundFiles,
+                                int &numResults) const;
 
 public:
     explicit DICOMClient(
@@ -32,11 +38,19 @@ public:
     ~DICOMClient();
 
     bool connect(const char *abstractSyntax, const char *transferSyntax, T_ASC_PresentationContextID presentationContextID = 1);
-    [[nodiscard]] bool sendMessage(int msgId, const string &dicomFilePath = "") const;
+    [[nodiscard]] bool sendMessage(
+                int msgId,
+                const string &dicomFilePath = "",
+                DcmDataset query = DcmDataset(),
+                vector<string> foundFiles = {},
+                int numResults = 0) const;
 
-    [[nodiscard]] bool sendCEcho(int msgId) const;
-    [[nodiscard]] bool sendCStore(int msgId, const string &dicomFilePath) const;
-    [[nodiscard]] bool sendCFind(int msgId) const;
+    static DcmDataset createFindQuery(const string &patientName = "",
+                                      const string &patientID = "",
+                                      const string &studyDate = "",
+                                      const string &modality = "",
+                                      const string &accessionNumber = "");
+
     void disconnect();
 };
 
