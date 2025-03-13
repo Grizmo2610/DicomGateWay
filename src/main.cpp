@@ -1,7 +1,9 @@
 #include "DICOMClient.h"
+#include <dcmtk/dcmdata/dctk.h>
 #include <filesystem>
 #include <vector>
 #include <random>
+
 
 namespace fs = std::filesystem;
 using namespace std;
@@ -61,15 +63,18 @@ void testCSTORESCU(DICOMClient client) {
 }
 
 void testCFINDSCU(DICOMClient client) {
-    const char *abstractSyntax = UID_FINDPatientRootQueryRetrieveInformationModel;
-    const char *transferSyntax = UID_LittleEndianImplicitTransferSyntax;
+    auto abstractSyntax = UID_FINDPatientRootQueryRetrieveInformationModel;
+    auto transferSyntax = UID_LittleEndianImplicitTransferSyntax;
 
-    string patientName = "CT so nao 16 day [khong tiem]";
-    string patientID = "1909051302";
-    string studyDate = "20241009";
+    // string patientName = "CT so nao 16 day [khong tiem]";
+    // string patientID = "1909051302";
+    // string studyDate = "20241009";
+    string patientName = "";
+    string patientID = "";
+    string studyDate = "";
     string modality = "CT";
 
-    DcmDataset query = DICOMClient::createFindQuery("", "1909051302", "20241009");
+    DcmDataset query = DICOMClient::createFindQuery(patientName, patientID, studyDate, modality);
     query.print(COUT);
 
     if (client.connect(abstractSyntax, transferSyntax)) {

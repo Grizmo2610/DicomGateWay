@@ -172,6 +172,7 @@ bool DICOMClient::sendCFind(
     }
 
     if (cond.good()) {
+        cout << numResults << endl;
         cout << "C-FIND query successful. Found " << foundFiles.size() << " results." << endl;
         return true;
     }
