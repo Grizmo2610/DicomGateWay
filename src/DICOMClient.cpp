@@ -4,24 +4,24 @@
 #include <utility>
 
 using namespace std;
-DICOMClient::DICOMClient(   string aeSCU,
-                            string aeSCP,
-                            string address,
-                            int port,
-                            string dicomDict)
-    :
-        aeTitleSCU(move(aeSCU)),
-        aeTitleSCP(move(aeSCP)),
-        peerAddress(move(address)),
-        peerPort(port),
-        dicomDictPath(move(dicomDict)){
 
-    if (setenv("DCMDICTPATH", dicomDictPath.c_str(), 1)) {
-        cerr << "setenv(DCMDICTPATH) failed" << endl;
-    }else {
-        cout << "DICOM dictionary path set." << endl;
+DICOMClient::DICOMClient(string aeSCU, string aeSCP, string address, int port, string dicomDict)
+    : aeTitleSCU(move(aeSCU)),
+      aeTitleSCP(move(aeSCP)),
+      peerAddress(move(address)),
+      peerPort(port),
+      dicomDictPath(move(dicomDict)) {
+
+    if (setenv("DCMDICTPATH", dicomDictPath.c_str(), 1) != 0) {
+        cerr << "setenv(DCMDICTPATH) failed!" << endl;
+    } else {
+        cout << "DICOM dictionary path set: " << dicomDictPath << endl;
     }
 
+    // Kiểm tra lại xem biến môi trường đã được thiết lập chưa
+    if (!getenv("DCMDICTPATH")) {
+        cerr << "Warning: DCMDICTPATH is not set correctly!" << endl;
+    }
 }
 
 void DICOMClient::disconnect() {
@@ -31,10 +31,12 @@ void DICOMClient::disconnect() {
             ASC_abortAssociation(assoc);
         }
         ASC_destroyAssociation(&assoc);
+        assoc = nullptr;
     }
 
     if (net) {
         ASC_dropNetwork(&net);
+        net = nullptr;
     }
 
     cout << "DICOM Network shut down." << endl;
@@ -43,7 +45,8 @@ void DICOMClient::disconnect() {
 DICOMClient::~DICOMClient() {
     disconnect();
 }
-bool DICOMClient::connect(const char *abstractSyntax, const char *transferSyntax, T_ASC_PresentationContextID presentationContextID){
+
+bool DICOMClient::connect(const char *abstractSyntax, const char *transferSyntax, T_ASC_PresentationContextID presentationContextID) {
     if (ASC_initializeNetwork(NET_REQUESTOR, peerPort, 1000, &net).bad()) {
         cerr << "Failed to initialize DICOM network." << endl;
         return false;
@@ -51,29 +54,31 @@ bool DICOMClient::connect(const char *abstractSyntax, const char *transferSyntax
 
     if (ASC_createAssociationParameters(&params, 16372, 30).bad()) {
         cerr << "Failed to create association parameters." << endl;
+        disconnect();
         return false;
     }
 
-    if (const OFCondition status = ASC_addPresentationContext(params, presentationContextID, abstractSyntax, &transferSyntax, 1); status.bad()) {
+    if (ASC_addPresentationContext(params, presentationContextID, abstractSyntax, &transferSyntax, 1).bad()) {
         cerr << "Failed to add presentation context." << endl;
         return false;
     }
+
     cout << "DICOM add presentation context." << endl;
 
     ASC_setAPTitles(params, aeTitleSCU.c_str(), aeTitleSCP.c_str(), nullptr);
     string peer = peerAddress + ":" + to_string(peerPort);
-    ASC_setPresentationAddresses(   params,
-                                    peer.c_str(),//
-                                    peer.c_str() //
-                                    );
+    ASC_setPresentationAddresses(params, peer.c_str(), peer.c_str());
 
-    if (ASC_requestAssociation(net, params, &assoc).bad()) {
-        cerr << "Failed to request association." << endl;
+    OFCondition status = ASC_requestAssociation(net, params, &assoc);
+    if (status.bad()) {
+        cerr << "Failed to request association: " << status.text() << endl;
+        disconnect();
         return false;
     }
 
     if (ASC_countAcceptedPresentationContexts(params) == 0) {
         cerr << "No acceptable presentation contexts!" << endl;
+        disconnect();
         return false;
     }
 
@@ -81,68 +86,63 @@ bool DICOMClient::connect(const char *abstractSyntax, const char *transferSyntax
     return true;
 }
 
-bool DICOMClient::sendMessage(const int msgId, const string &dicomFilePath) const {
+bool DICOMClient::sendMessage(int msgId, const string &dicomFilePath) const {
     if (!assoc) {
         cerr << "No active association!" << endl;
         return false;
     }
     switch (msgId) {
-        case 1: // C-ECHO
-            return sendCEcho(msgId);
-        case 2: // C-FIND
-            return sendCFind(msgId);
-        case 3: // C-STORE
-            return sendCStore(msgId, dicomFilePath);
+        case 1: return sendCEcho(msgId);
+        case 2: return sendCFind(msgId);
+        case 3: return sendCStore(msgId, dicomFilePath);
         default:
             cerr << "Unknown message ID: " << msgId << endl;
-        return false;
+            return false;
     }
 }
 
-bool DICOMClient::sendCEcho(const int msgId) const {
+bool DICOMClient::sendCEcho(int msgId) const {
     DIC_US rspStatus;
     DcmDataset *statusDetail = nullptr;
+    OFCondition status = DIMSE_echoUser(assoc, msgId, DIMSE_BLOCKING, 10, &rspStatus, &statusDetail);
+    delete statusDetail;
 
-    if (const OFCondition status = DIMSE_echoUser(assoc, msgId, DIMSE_BLOCKING, 10, &rspStatus, &statusDetail);
-        status.good() && rspStatus == STATUS_Success) {
+    if (status.good() && rspStatus == STATUS_Success) {
         cout << "C-ECHO successful! (msgId: " << msgId << ")" << endl;
         return true;
-    } else {
-        cerr << "C-ECHO failed: " << status.text() << " (Status: " << rspStatus << ", msgId: " << msgId << ")" << endl;
-        return false;
     }
+    cerr << "C-ECHO failed: " << status.text() << " (Status: " << rspStatus << ", msgId: " << msgId << ")" << endl;
+    return false;
 }
 
 bool DICOMClient::sendCFind(int msgId) const {
     T_DIMSE_C_FindRQ request{};
-    memset(&request, 0, sizeof(request));
     request.MessageID = msgId;
     request.DataSetType = DIMSE_DATASET_PRESENT;
     strcpy(request.AffectedSOPClassUID, UID_FINDPatientRootQueryRetrieveInformationModel);
 
-    auto *query = new DcmDataset();
-    query->putAndInsertString(DCM_PatientName, "*");
-    query->putAndInsertString(DCM_PatientID, "");
+    unique_ptr<DcmDataset> query(new DcmDataset());
+    query->putAndInsertString(DCM_PatientName, "CT so nao 16 day [khong tiem]");
+    query->putAndInsertString(DCM_PatientID, "1909051302");
 
     int responseCount = 0;
     T_DIMSE_C_FindRSP response{};
     DcmDataset *statusDetail = nullptr;
 
-    const T_ASC_PresentationContextID presId = ASC_findAcceptedPresentationContextID(assoc, request.AffectedSOPClassUID);
+    T_ASC_PresentationContextID presId = ASC_findAcceptedPresentationContextID(assoc, request.AffectedSOPClassUID);
+    if (presId == 0) {
+        cerr << "No suitable presentation context for C-FIND!" << endl;
+        return false;
+    }
 
-    OFCondition cond = DIMSE_findUser(
-        assoc, presId, &request, query, responseCount,
-        nullptr, nullptr, DIMSE_BLOCKING, 30, &response, &statusDetail
-    );
-
-    delete query;
+    OFCondition cond = DIMSE_findUser(assoc, presId, &request, query.get(), responseCount, nullptr, nullptr, DIMSE_BLOCKING, 30, &response, &statusDetail);
     delete statusDetail;
 
     if (cond.good()) {
-        std::cout << "C-FIND query sent successfully." << std::endl;
+        cout << "C-FIND query sent successfully." << endl;
         return true;
     } else {
-        std::cerr << "C-FIND failed: " << cond.text() << std::endl;
+        cerr << "C-FIND failed: " << cond.text() << endl;
         return false;
     }
 }
@@ -187,14 +187,10 @@ bool DICOMClient::sendCStore(int msgId, const string &dicomFilePath) const {
     request.MessageID = msgId;
     request.DataSetType = DIMSE_DATASET_PRESENT;
 
-    if (dataset->findAndGetOFString(DCM_SOPInstanceUID, sopInstanceUID).bad()) {
-        cerr << "Failed to get SOPInstanceUID from dataset!" << endl;
-        return false;
-    }
     strcpy(request.AffectedSOPInstanceUID, sopInstanceUID.c_str());
 
 
-    T_ASC_PresentationContextID presId = ASC_findAcceptedPresentationContextID(assoc, request.AffectedSOPClassUID);
+    const T_ASC_PresentationContextID presId = ASC_findAcceptedPresentationContextID(assoc, request.AffectedSOPClassUID);
     if (presId == 0) {
         cerr << "No suitable presentation context for C-STORE!" << endl;
         return false;
@@ -204,7 +200,7 @@ bool DICOMClient::sendCStore(int msgId, const string &dicomFilePath) const {
 
     DcmDataset *statusDetail = nullptr;
     status = DIMSE_storeUser(assoc, presId, &request, dicomFilePath.c_str(), dataset, nullptr, nullptr, DIMSE_BLOCKING, 0, &response, &statusDetail, nullptr, 0);
-
+    delete statusDetail;
     if (status.good() && response.DimseStatus == STATUS_Success) {
         cout << "C-STORE successful! (msgId: " << msgId << ", File: " << dicomFilePath << ")" << endl;
         return true;

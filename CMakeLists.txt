@@ -15,3 +15,7 @@ add_executable(DCMGATE  src/main.cpp
                         src/DICOMClient.cpp)
 
 target_link_libraries(DCMGATE dcmect dcmpmap dcmtract dcmseg dcmfg dcmiod dcmrt dcmpstat dcmqrdb dcmwlm dcmdsig cmr dcmsr dcmnet dcmtls dcmtkcharls dcmjpls ijg16 ijg12 ijg8 dcmjpeg dcmimage dcmimgle dcmxml i2d dcmdata oflog ofstd oficonv z)
+
+add_executable(DCMTKTEST  src/DCMTKTEST/main.cpp)
+
+target_link_libraries(DCMTKTEST dcmect dcmpmap dcmtract dcmseg dcmfg dcmiod dcmrt dcmpstat dcmqrdb dcmwlm dcmdsig cmr dcmsr dcmnet dcmtls dcmtkcharls dcmjpls ijg16 ijg12 ijg8 dcmjpeg dcmimage dcmimgle dcmxml i2d dcmdata oflog ofstd oficonv z)

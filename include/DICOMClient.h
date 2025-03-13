@@ -6,6 +6,7 @@
 #include "dcmtk/dcmnet/dimse.h"
 #include "dcmtk/dcmdata/dcuid.h"
 #include <iostream>
+#include <memory>
 
 using namespace std;
 
@@ -38,6 +39,5 @@ public:
     [[nodiscard]] bool sendCFind(int msgId) const;
     void disconnect();
 };
-
 
 #endif
