@@ -42,8 +42,8 @@ public:
                 int msgId,
                 const string &dicomFilePath = "",
                 DcmDataset query = DcmDataset(),
-                vector<string> foundFiles = {},
-                int numResults = 0) const;
+                vector<string> *foundFiles = {},
+                int count = 0) const;
 
     static DcmDataset createFindQuery(const string &patientName = "",
                                       const string &patientID = "",

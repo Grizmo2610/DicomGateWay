@@ -79,7 +79,7 @@ void testCFINDSCU(DICOMClient client) {
 
     if (client.connect(abstractSyntax, transferSyntax)) {
         int numResults = 0;
-        if (vector<string> foundFiles; client.sendMessage(2, "", query, foundFiles, numResults)) {
+        if (vector<string> foundFiles; client.sendMessage(2, "", query, &foundFiles, numResults)) {
             cout << ">>> C-FIND OK" << endl;
             for (const auto &file : foundFiles) {
                 cout << "Found: " << file << endl;

@@ -99,8 +99,8 @@ bool DICOMClient::connect(const char *abstractSyntax, const char *transferSyntax
 bool DICOMClient::sendMessage(const int msgId,
                               const string &dicomFilePath,
                               DcmDataset query,
-                              vector<string> foundFiles,
-                              int numResults) const {
+                              vector<string> *foundFiles,
+                              int count) const {
     if (!assoc) {
         cerr << "No active association!" << endl;
         return false;
@@ -110,7 +110,7 @@ bool DICOMClient::sendMessage(const int msgId,
             return sendCEcho(msgId);
         }
         case 2: {
-            return sendCFind(msgId, query, foundFiles, numResults);
+            return sendCFind(msgId, query, *foundFiles, count);
         }
         case 3: {
             return sendCStore(msgId, dicomFilePath);
