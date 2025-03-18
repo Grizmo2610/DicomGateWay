@@ -86,6 +86,9 @@ bool DICOMClient::connect(const char *abstractSyntax, const char *transferSyntax
         return false;
     }
 
+    int acceptedCount = ASC_countAcceptedPresentationContexts(params);
+    cout << "Accepted Presentation Contexts: " << acceptedCount << endl;
+
     if (ASC_countAcceptedPresentationContexts(params) == 0) {
         cerr << "No acceptable presentation contexts!" << endl;
         disconnect();
@@ -140,11 +143,30 @@ bool DICOMClient::sendCEcho(const int msgId) const {
     return false;
 }
 
+struct QueryResult {
+    std::string patientName;
+    std::string studyUID;
+};
+
+void findCallback(void *callbackData, T_DIMSE_C_FindRQ *request, int responseCount,
+                  T_DIMSE_C_FindRSP *response, DcmDataset *rspIds) {
+    if (rspIds) {
+        auto *foundFiles = static_cast<std::vector<std::string>*>(callbackData);
+
+        OFString studyUID;
+        if (rspIds->findAndGetOFString(DCM_StudyInstanceUID, studyUID).good()) {
+            foundFiles->push_back(studyUID.c_str());
+        }
+    }
+}
+
+
+
 bool DICOMClient::sendCFind(
     const int msgId,
     DcmDataset &query,
     vector<string> &foundFiles,
-    int &numResults) const {
+    int &responseCount) const {
 
     T_DIMSE_C_FindRQ request{};
     request.MessageID = msgId;
@@ -153,18 +175,19 @@ bool DICOMClient::sendCFind(
 
     T_DIMSE_C_FindRSP response{};
 
-    const T_ASC_PresentationContextID presId = ASC_findAcceptedPresentationContextID(assoc, request.AffectedSOPClassUID);
-    if (presId == 0) {
+    const T_ASC_PresentationContextID presID = ASC_findAcceptedPresentationContextID(assoc, request.AffectedSOPClassUID);
+    if (presID == 0) {
         cerr << "No suitable presentation context for C-FIND!" << endl;
         return false;
     }
 
     DcmDataset *statusDetail = nullptr;
-    numResults = 0;
+    responseCount = 0;
 
     const OFCondition cond = DIMSE_findUser(
-        assoc, presId, &request, &query, numResults, nullptr,
-        &foundFiles, DIMSE_BLOCKING, 90, &response, &statusDetail);
+        assoc, presID, &request, &query, responseCount,
+        findCallback, &foundFiles,
+        DIMSE_BLOCKING, 90, &response, &statusDetail);
 
     if (statusDetail) {
         delete statusDetail;
@@ -172,8 +195,8 @@ bool DICOMClient::sendCFind(
     }
 
     if (cond.good()) {
-        cout << numResults << endl;
-        cout << "C-FIND query successful. Found " << foundFiles.size() << " results." << endl;
+        cout << "Response #" << responseCount - 1<< " received. "<< endl;
+        cout << "Found: " << foundFiles.size() << endl;
         return true;
     }
     cerr << "C-FIND failed: " << cond.text() << endl;
@@ -220,8 +243,6 @@ bool DICOMClient::sendCStore(int msgId, const string &dicomFilePath) const {
     request.MessageID = msgId;
     request.DataSetType = DIMSE_DATASET_PRESENT;
 
-    strcpy(request.AffectedSOPInstanceUID, sopInstanceUID.c_str());
-
 
     const T_ASC_PresentationContextID presId = ASC_findAcceptedPresentationContextID(assoc, request.AffectedSOPClassUID);
     if (presId == 0) {
@@ -232,7 +253,11 @@ bool DICOMClient::sendCStore(int msgId, const string &dicomFilePath) const {
     T_DIMSE_C_StoreRSP response{};
 
     DcmDataset *statusDetail = nullptr;
-    status = DIMSE_storeUser(assoc, presId, &request, dicomFilePath.c_str(), dataset, nullptr, nullptr, DIMSE_BLOCKING, 0, &response, &statusDetail, nullptr, 0);
+    status = DIMSE_storeUser(assoc, presId, &request,
+                            dicomFilePath.c_str(), dataset,
+                            nullptr,nullptr, DIMSE_BLOCKING,
+                            0, &response, &statusDetail,
+                            nullptr, 0);
     if (statusDetail) {
         delete statusDetail;
         statusDetail = nullptr;
@@ -251,12 +276,15 @@ DcmDataset DICOMClient::createFindQuery(const string &patientName,
                                         const string &modality,
                                         const string &accessionNumber) {
     DcmDataset query;
+    query.putAndInsertString(DCM_QueryRetrieveLevel, "PATIENT");
 
     query.putAndInsertString(DCM_PatientName, patientName.empty() ? "*" : patientName.c_str());
     query.putAndInsertString(DCM_PatientID, patientID.empty() ? "*" : patientID.c_str());
     query.putAndInsertString(DCM_StudyDate, studyDate.empty() ? "" : studyDate.c_str());
     query.putAndInsertString(DCM_Modality, modality.empty() ? "*" : modality.c_str());
     query.putAndInsertString(DCM_AccessionNumber, accessionNumber.empty() ? "*" : accessionNumber.c_str());
+    query.putAndInsertString(DCM_StudyInstanceUID, "*");  // Thêm StudyInstanceUID
+    query.putAndInsertString(DCM_SOPInstanceUID, "*");    // Thêm SOPInstanceUID
 
     return query;
 }

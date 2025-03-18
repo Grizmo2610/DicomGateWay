@@ -25,7 +25,7 @@ class DICOMClient {
     [[nodiscard]] bool sendCFind(int msgId,
                                 DcmDataset &query,
                                 vector<string> &foundFiles,
-                                int &numResults) const;
+                                int &responseCount) const;
 
 public:
     explicit DICOMClient(

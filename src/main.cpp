@@ -68,22 +68,19 @@ void testCFINDSCU(DICOMClient client) {
 
     // string patientName = "CT so nao 16 day [khong tiem]";
     // string patientID = "1909051302";
-    // string studyDate = "20241009";
+    string studyDate = "20241009";
     string patientName = "";
     string patientID = "";
-    string studyDate = "";
+    // string studyDate = "";
     string modality = "CT";
 
     DcmDataset query = DICOMClient::createFindQuery(patientName, patientID, studyDate, modality);
-    query.print(COUT);
+    // query.print(COUT);
 
     if (client.connect(abstractSyntax, transferSyntax)) {
         int numResults = 0;
         if (vector<string> foundFiles; client.sendMessage(2, "", query, &foundFiles, numResults)) {
             cout << ">>> C-FIND OK" << endl;
-            for (const auto &file : foundFiles) {
-                cout << "Found: " << file << endl;
-            }
         } else {
             cout << ">>> C-FIND FAIL" << endl;
         }
