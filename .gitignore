@@ -1,6 +1,7 @@
 # Ignore CLion-specific and JetBrains IDE files
 .idea/
 cmake-build-*/
+build/
 
 
 # Ignore build artifacts
