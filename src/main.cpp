@@ -89,7 +89,28 @@ void testCFINDSCU(DICOMClient client) {
     }
 }
 
+void testCGETSCU(DICOMClient client) {
+    auto abstractSyntax = UID_GETStudyRootQueryRetrieveInformationModel;
+    auto transferSyntax = UID_LittleEndianImplicitTransferSyntax;
 
+    // Các thông tin để truy vấn
+    string patientName = "";
+    string patientID = "";
+    string studyDate = "20241009"; // Ngày nghiên cứu
+    string modality = "CT";
+
+    DcmDataset query = DICOMClient::createFindQuery(patientName, patientID, studyDate, modality);
+
+    if (client.connect(abstractSyntax, transferSyntax)) {
+        if (client.sendMessage(4, "", query)) {
+            cout << ">>> C-GET OK" << endl;
+        } else {
+            cout << ">>> C-GET FAIL" << endl;
+        }
+    } else {
+        cout << ">>> CONNECTION FAIL" << endl;
+    }
+}
 
 int main() {
     DICOMClient client;
@@ -103,6 +124,10 @@ int main() {
 
     cout << "===TEST C-FIND SCU===" << endl;
     testCFINDSCU(client);
+    cout << "======================" << endl;
+
+    cout << "===TEST C-GET SCU===" << endl;
+    testCGETSCU(client);
     cout << "======================" << endl;
 
     client.disconnect();

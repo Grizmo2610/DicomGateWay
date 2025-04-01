@@ -26,6 +26,8 @@ class DICOMClient {
                                 DcmDataset &query,
                                 vector<string> &foundFiles,
                                 int &responseCount) const;
+    [[nodiscard]] bool sendCGet(int msgId,
+                                DcmDataset &query) const;
 
 public:
     explicit DICOMClient(
@@ -37,7 +39,10 @@ public:
         );
     ~DICOMClient();
 
-    bool connect(const char *abstractSyntax, const char *transferSyntax, T_ASC_PresentationContextID presentationContextID = 1);
+    bool connect(const char *abstractSyntax,
+                 const char *transferSyntax,
+                 T_ASC_PresentationContextID presentationContextID = 1,
+                 string connect_peerPort = "");
     [[nodiscard]] bool sendMessage(
                 int msgId,
                 const string &dicomFilePath = "",

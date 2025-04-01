@@ -46,7 +46,11 @@ DICOMClient::~DICOMClient() {
     disconnect();
 }
 
-bool DICOMClient::connect(const char *abstractSyntax, const char *transferSyntax, T_ASC_PresentationContextID presentationContextID) {
+bool DICOMClient::connect(const char *abstractSyntax,
+                          const char *transferSyntax,
+                          T_ASC_PresentationContextID presentationContextID,
+                          string connect_peerPort) {
+
     if (ASC_initializeNetwork(NET_REQUESTOR, peerPort, 1000, &net).bad()) {
         cerr << "Failed to initialize DICOM network." << endl;
         disconnect();
@@ -73,10 +77,19 @@ bool DICOMClient::connect(const char *abstractSyntax, const char *transferSyntax
         return false;
     }
     const string peer = peerAddress + ":" + to_string(peerPort);
+    if (connect_peerPort.empty()) {
+        connect_peerPort = peer;
+    }
+    const char * target = connect_peerPort.c_str();
 
-    if (const OFCondition status = ASC_setPresentationAddresses(params, peer.c_str(), peer.c_str()); status.bad()) {
+
+    if (const OFCondition status = ASC_setPresentationAddresses(params,
+                                                                peer.c_str(),
+                                                                target
+                                                                );
+                                                                status.bad()) {
         disconnect();
-        cerr << "Failed to set Presentation ddresses: " << status.text() << endl;
+        cerr << "Failed to set Presentation addresses: " << status.text() << endl;
         return false;
     }
 
@@ -117,8 +130,9 @@ bool DICOMClient::sendMessage(const int msgId,
         }
         case 3: {
             return sendCStore(msgId, dicomFilePath);
-        }
-        default: {
+        }case 4:{
+            return sendCGet(msgId, query);
+        }default: {
             cerr << "Unknown message ID: " << msgId << endl;
             return false;
         }
@@ -155,7 +169,7 @@ void findCallback(void *callbackData, T_DIMSE_C_FindRQ *request, int responseCou
 
         OFString studyUID;
         if (rspIds->findAndGetOFString(DCM_StudyInstanceUID, studyUID).good()) {
-            foundFiles->push_back(studyUID.c_str());
+            foundFiles->emplace_back(studyUID.c_str());
         }
     }
 }
@@ -203,7 +217,7 @@ bool DICOMClient::sendCFind(
     return false;
 }
 
-bool DICOMClient::sendCStore(int msgId, const string &dicomFilePath) const {
+bool DICOMClient::sendCStore(const int msgId, const string &dicomFilePath) const {
     if (dicomFilePath.empty()) {
         cerr << "C-STORE requires a valid DICOM file path!" << endl;
         return false;
@@ -287,4 +301,40 @@ DcmDataset DICOMClient::createFindQuery(const string &patientName,
     query.putAndInsertString(DCM_SOPInstanceUID, "*");    // Thêm SOPInstanceUID
 
     return query;
+}
+
+
+
+bool DICOMClient::sendCGet(int msgId, DcmDataset &query) const {
+
+    T_DIMSE_C_GetRQ request{};
+    request.MessageID = msgId;
+    request.DataSetType = DIMSE_DATASET_PRESENT;
+    strcpy(request.AffectedSOPClassUID, UID_GETStudyRootQueryRetrieveInformationModel);
+
+    T_ASC_PresentationContextID presID = ASC_findAcceptedPresentationContextID(assoc, request.AffectedSOPClassUID);
+    if (presID == 0) {
+        cerr << "No suitable presentation context for C-GET!" << endl;
+        return false;
+    }
+
+    T_DIMSE_C_GetRSP response{};
+    DcmDataset *statusDetail = nullptr;
+    OFCondition status = DIMSE_getUser(assoc,
+                                       msgId,
+                                       &request,
+                                       &query,
+                                       nullptr,nullptr,
+                                       DIMSE_BLOCKING, 90,
+                                        net, nullptr, nullptr,
+                                        &response, &statusDetail,nullptr);
+    if (statusDetail) {
+        delete statusDetail;
+        statusDetail = nullptr;
+    }
+    if (status.good() && response.DimseStatus == STATUS_Success) {
+        cout << "C-GET successful! (msgId: " << msgId << ")" << endl;
+        return true;
+    }
+    return false;
 }

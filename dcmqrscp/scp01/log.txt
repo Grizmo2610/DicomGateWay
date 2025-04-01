@@ -1,0 +1,24 @@
+I: Requesting Association
+I: Association Accepted (Max Send PDV: 16372)
+I: Sending Find Request (MsgID 1)
+I: Request Identifiers:
+I:
+I: # Dicom-Data-Set
+I: # Used TransferSyntax: Little Endian Explicit
+I: (0008,0052) CS [PATIENT ]                               #   8, 1 QueryRetrieveLevel
+I: (0010,0010) PN [* ]                                     #   2, 1 PatientName
+I: (0010,0020) LO [* ]                                     #   2, 1 PatientID
+I:
+I: ---------------------------
+I: Find Response: 1 (Pending)
+I:
+I: # Dicom-Data-Set
+I: # Used TransferSyntax: Little Endian Explicit
+I: (0008,0005) CS [ISO_IR 192]                             #  10, 1 SpecificCharacterSet
+I: (0008,0052) CS [PATIENT ]                               #   8, 1 QueryRetrieveLevel
+I: (0008,0054) AE [PACS_SRC]                               #   8, 1 RetrieveAETitle
+I: (0010,0010) PN [CT so nao 16 day [khong tiem] ]         #  30, 1 PatientName
+I: (0010,0020) LO [1909051302]                             #  10, 1 PatientID
+I:
+I: Received Final Find Response (Success)
+I: Releasing Association
